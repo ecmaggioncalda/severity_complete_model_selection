@@ -1,0 +1,21 @@
+# prior to beginning this snakemake workflow, run code/generate_feature_sets.R to build data/combined_mat.tsv, data/pheno_full.csv, and data/minimal_filtered_features.csv 
+metadata: data/pheno_full.csv #file containing strain ids and phenotype column(s), strain id column defined by "genome_id"
+genome:
+  combined: data/combined_mat.tsv
+ml_methods: #list of what machine learning methods to include from mikropml
+ - glmnet
+ - rf
+ - svmRadial
+kfold: 5 #numeric defining the number of folds to split the train/test data in for mikropml
+ncores: 20 #numeric defining the number of cores available for performing processing
+nseeds: 100 #numeric defining the number of seeds for mikropml to run as different train/test splits
+alpha_var: 0.10 #either "default" or a number indicating the number to use as the interval to move between 0 and 1 for elastic net alpha
+lambda_var: alternate #either "default" or "alternate", with "alternate" specifying the range of lamda values in the ml.R script
+phenotype: #list defining the phenotype(s) of interest from the metadata file
+ - IDSA_severe_mod.full
+ - IDSA_severe_mod.q1
+ - IDSA_severe_mod.q23
+ - IDSA_severe_mod.q4
+ - IDSA_severe_mod.t1
+ - IDSA_severe_mod.t2
+ - IDSA_severe_mod.t3
