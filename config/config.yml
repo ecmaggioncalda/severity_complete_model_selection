@@ -8,7 +8,7 @@ ml_methods: #list of what machine learning methods to include from mikropml
  - svmRadial
 kfold: 5 #numeric defining the number of folds to split the train/test data in for mikropml
 ncores: 20 #numeric defining the number of cores available for performing processing
-nseeds: 100 #numeric defining the number of seeds for mikropml to run as different train/test splits
+nseeds: 25 #numeric defining the number of seeds for mikropml to run as different train/test splits
 alpha_var: 0.10 #either "default" or a number indicating the number to use as the interval to move between 0 and 1 for elastic net alpha
 lambda_var: alternate #either "default" or "alternate", with "alternate" specifying the range of lamda values in the ml.R script
 phenotype: #list defining the phenotype(s) of interest from the metadata file

@@ -49,7 +49,7 @@ checkpoint prepro_overall:
         "log/{phenotype}.prepro_overall.txt"
     resources:
         ncores = ncores,
-        mem_mb = get_mem_mb_lowest
+        mem_mb = get_mem_mb_high
     benchmark:
         "benchmarks/{phenotype}.prepro_overall.txt"
     script:
@@ -60,7 +60,6 @@ rule generate_mikropml_df:
     input:
         R = "code/generate_mikropml_df.R",
         pheno = "data/pheno/{phenotype}/{group}.tsv",
-        feature_file = "data/minimal_filtered_features.csv"
     output:
         file_name = "data/mikropml/{phenotype}/{group}.{genome}.csv"
     params:
@@ -69,7 +68,7 @@ rule generate_mikropml_df:
         "log/{phenotype}/{group}.{genome}.generate_mikropml_df.txt"
     resources:
         ncores = ncores,
-        mem_mb = get_mem_mb_lowest
+        mem_mb = get_mem_mb_low
     benchmark:
         "benchmarks/{phenotype}/{group}.{genome}.generate_mikropml_df.txt"
     script:

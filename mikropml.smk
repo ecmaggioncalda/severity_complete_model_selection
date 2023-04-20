@@ -16,7 +16,7 @@ rule preprocess_data:
         outcome_colname='{phenotype}'
     resources:
         ncores=ncores, #This is present but not active in the cluster.json file since the multiple cores was not necessary for the size of input matrices, it was an inefficient use of resources; if preprocessing requires more, add back in this to the cluster.json file for this rule
-        mem_mb = get_mem_mb_med
+        mem_mb = get_mem_mb_high
     script:
         "code/preproc.R"
 
