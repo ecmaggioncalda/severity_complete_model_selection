@@ -1,98 +1,176 @@
 #LIBRARIES ----
 library(tidyverse)
+library(mikropml)
 
-#GWAS RESULTS ----
-full_hits_prime <- read_csv("../../2023_02_07_combined_geno_summary/data/full_hits.csv")
+#METADATA ----
+metadata <- read_csv("../../data/patient_metadata.csv")
 
-treewas_tests <- unique(full_hits_prime$treewas.test)
-hogwash_tests <- unique(full_hits_prime$hogwash.test)[!is.na(unique(full_hits_prime$hogwash.test))]
-ml_tests <- unique(full_hits_prime$ml.test)
-genos <- unique(full_hits_prime$geno)
-pheno_groups <- unique(full_hits_prime$group)
-phenos <- unique(full_hits_prime$pheno)
+metadata_sub <- metadata %>%
+  select(genome_id,
+         clade) %>%
+  mutate(across(everything(), ~as.character(.x)))
 
-full_hits_bool <- full_hits_prime %>%
-  select(pheno,
-         geno,
-         group,
-         names,
-         hogwash.test,
-         hogwash_Sig_Pval,
-         treewas.test,
-         treewas.sig) %>%
-  distinct() %>%
-  pivot_wider(names_from = hogwash.test,
-              values_from = hogwash_Sig_Pval,
-              values_fn = unique) %>%
-  pivot_wider(names_from = treewas.test,
-              values_from = treewas.sig,
-              values_fn = unique) %>%
-  mutate(`NA` = NULL) %>%
-  distinct() %>%
-  group_by(pheno,
-           geno,
-           group,
-           names) %>%
-  rowwise() %>%
-  summarize(hogwash_sig = sum(c_across(c(all_of(hogwash_tests))), na.rm = TRUE),
-            treewas_sig = sum(c_across(c(all_of(treewas_tests))), na.rm = TRUE)) %>%
-  distinct() %>%
-  mutate(sig_groupings = paste0(hogwash_sig, ".", treewas_sig))
-
-full_hits <- full_hits_prime %>%
-  full_join(full_hits_bool, by = intersect(colnames(full_hits_bool), colnames(full_hits_prime))) %>%
-  distinct() %>%
-  mutate(pheno.group = paste0(pheno, ".", group))
-
-sig_hits <- full_hits %>%
-  filter(sig_groupings != "0.0")
-
-sig_hits_distinct <- sig_hits %>%
-  select(pheno.group,
-         geno,
-         full_names,
-         sig_groupings) %>%
-  distinct() %>%
-  mutate(full_names = gsub("_$", "", full_names))
-
-sig_hits_full_names <- unique(sig_hits_distinct$full_names)
-
-sig_hits_pivot <- sig_hits_distinct %>%
-  select(pheno.group,
-         full_names) %>%
-  pivot_wider(names_from = pheno.group,
-              values_from = pheno.group,
-              values_fn = length,
-              values_fill = 0)
-
-write_csv(sig_hits_pivot,
-          "data/minimal_filtered_features.csv")
+metadata_sub <- as.data.frame(metadata_sub)
+rownames(metadata_sub) <- metadata_sub$genome_id
+metadata_sub <- metadata_sub[, -1, drop = FALSE]
 
 #GENOS ----
 core_df <- read_delim("../../data/core_mat_sift.tsv")
-gene_df <- read_delim("../../data/gene_mat.tsv")
+
+core_df_sub <- core_df %>%
+  mutate(variant = gsub("_$", "", variant)) %>%
+  column_to_rownames("variant")
+
+core_df_merge <- t(core_df_sub)
+
+if(sum(rownames(metadata_sub) %in% rownames(core_df_merge)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+index <- match(rownames(metadata_sub), rownames(core_df_merge))
+
+core_df_ordered <- core_df_merge[index, , drop = FALSE]
+
+if(sum(rownames(metadata_sub) == rownames(core_df_ordered)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+core_df_frame <- cbind(metadata_sub,
+                       core_df_ordered)
+
+core_preproc <- preprocess_data(dataset = core_df_frame,
+                                outcome_colname = "clade",
+                                method = NULL,
+                                collapse_corr_feats = TRUE,
+                                group_neg_corr = TRUE,
+                                to_numeric = FALSE,
+                                remove_var = "zv")
+
+core_preproc_df <- core_preproc$dat_transformed
+colnames(core_preproc_df)[grep("grp", colnames(core_preproc_df))] <- gsub("$", "_core", colnames(core_preproc_df)[grep("grp", colnames(core_preproc_df))])
+
+gene_df <- read_delim("../../data/gene_mat_sift.tsv")
+
+gene_df_sub <- gene_df %>%
+  mutate(variant = gsub("_$", "", variant)) %>%
+  column_to_rownames("variant")
+
+gene_df_merge <- t(gene_df_sub)
+
+if(sum(rownames(metadata_sub) %in% rownames(gene_df_merge)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+index <- match(rownames(metadata_sub), rownames(gene_df_merge))
+
+gene_df_ordered <- gene_df_merge[index, , drop = FALSE]
+
+if(sum(rownames(metadata_sub) == rownames(gene_df_ordered)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+gene_df_frame <- cbind(metadata_sub,
+                       gene_df_ordered)
+
+gene_preproc <- preprocess_data(dataset = gene_df_frame,
+                                outcome_colname = "clade",
+                                method = NULL,
+                                collapse_corr_feats = TRUE,
+                                group_neg_corr = TRUE,
+                                to_numeric = FALSE,
+                                remove_var = "zv")
+
+gene_preproc_df <- gene_preproc$dat_transformed
+colnames(gene_preproc_df)[grep("grp", colnames(gene_preproc_df))] <- gsub("$", "_gene", colnames(gene_preproc_df)[grep("grp", colnames(gene_preproc_df))])
+
 pan_df <- read_delim("../../data/pan_mat.tsv")
+
+pan_df_sub <- pan_df %>%
+  mutate(variant = gsub("_$", "", variant)) %>%
+  column_to_rownames("variant")
+
+pan_df_merge <- t(pan_df_sub)
+
+if(sum(rownames(metadata_sub) %in% rownames(pan_df_merge)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+index <- match(rownames(metadata_sub), rownames(pan_df_merge))
+
+pan_df_ordered <- pan_df_merge[index, , drop = FALSE]
+
+if(sum(rownames(metadata_sub) == rownames(pan_df_ordered)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+pan_df_frame <- cbind(metadata_sub,
+                      pan_df_ordered)
+
+pan_preproc <- preprocess_data(dataset = pan_df_frame,
+                               outcome_colname = "clade",
+                               method = NULL,
+                               collapse_corr_feats = TRUE,
+                               group_neg_corr = TRUE,
+                               to_numeric = FALSE,
+                               remove_var = "zv")
+
+pan_preproc_df <- pan_preproc$dat_transformed
+colnames(pan_preproc_df)[grep("grp", colnames(pan_preproc_df))] <- gsub("$", "_pan", colnames(pan_preproc_df)[grep("grp", colnames(pan_preproc_df))])
+
 struct_df <- read_delim("../../data/pan_struct_mat.tsv")
 
-geno_df <- bind_rows(core_df,
-                     gene_df,
-                     pan_df,
-                     struct_df)
+struct_df_sub <- struct_df %>%
+  mutate(variant = gsub("_$", "", variant)) %>%
+  column_to_rownames("variant")
 
-index <- sapply(sig_hits_full_names,
-                function(x){
-                  
-                  which(x == geno_df$variant)
-                  
-                })
+struct_df_merge <- t(struct_df_sub)
 
-length(index) == length(sig_hits_full_names) #needs to be TRUE
-any(is.na(index)) #needs to be FALSE
+if(sum(rownames(metadata_sub) %in% rownames(struct_df_merge)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
 
-geno_df_sub <- geno_df[index,]
+index <- match(rownames(metadata_sub), rownames(struct_df_merge))
 
-write_delim(geno_df_sub,
+struct_df_ordered <- struct_df_merge[index, , drop = FALSE]
+
+if(sum(rownames(metadata_sub) == rownames(struct_df_ordered)) != length(rownames(metadata_sub))){
+  stop("mismatch between pheno and geno contents")
+}
+
+struct_df_frame <- cbind(metadata_sub,
+                         struct_df_ordered)
+
+struct_preproc <- preprocess_data(dataset = struct_df_frame,
+                                  outcome_colname = "clade",
+                                  method = NULL,
+                                  collapse_corr_feats = TRUE,
+                                  group_neg_corr = TRUE,
+                                  to_numeric = FALSE,
+                                  remove_var = "zv")
+
+struct_preproc_df <- struct_preproc$dat_transformed
+colnames(struct_preproc_df)[grep("grp", colnames(struct_preproc_df))] <- gsub("$", "_struct", colnames(struct_preproc_df)[grep("grp", colnames(struct_preproc_df))])
+
+geno_df <- bind_cols(metadata_sub,
+                     core_preproc_df[,-1],
+                     gene_preproc_df[,-1],
+                     pan_preproc_df[,-1],
+                     struct_preproc_df[,-1]) %>%
+  mutate(clade = NULL)
+
+geno_pivot <- as.data.frame(t(geno_df)) %>%
+  rownames_to_column("variant")
+
+write_delim(geno_pivot,
             "data/combined_mat.tsv")
+
+geno_preprocessed <- list("core" = core_preproc,
+                          "gene" = gene_preproc,
+                          "pan" = pan_preproc,
+                          "struct" = struct_preproc)
+
+save(geno_preprocessed,
+     file = "data/geno_frames_preprocessed.RData")
 
 #PHENOTYPE ----
 pheno_dirs <- list.files("../../2023_01_05_snakemake_sift_core_analysis/severity_core_sift/data/pheno",
@@ -132,5 +210,9 @@ for(i in 2:length(pheno_path)){
 
 colnames(pheno)[grep("q2_3", colnames(pheno))] <- gsub("q2_3", "q23", colnames(pheno)[grep("q2_3", colnames(pheno))])
 
-write_csv(pheno,
+pheno_chr <- pheno  %>%
+  mutate(across(!genome_id,  ~replace(.x, .x == 0, "not_severe")),
+         across(!genome_id,  ~replace(.x, .x == 1, "severe")))
+
+write_csv(pheno_chr,
           "data/pheno_full.csv")
