@@ -27,7 +27,7 @@ def get_mem_mb_med(wildcards, attempt):
      return "%dGB" % (mem)
 
 def get_mem_mb_high(wildcards, attempt):
-     mem = attempt*8
+     mem = attempt*15
      return "%dGB" % (mem)
 
 def get_geno_path(wildcards):
