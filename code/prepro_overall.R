@@ -50,7 +50,9 @@ if(dir.exists(new_dir3) == FALSE){
 pheno_sub <- pheno %>%
   select(genome_id,
          all_of(phenotype_cols)) %>%
-  drop_na()
+  drop_na()%>%
+  mutate(across(!genome_id,  ~replace(.x, .x == 0, "not_severe")),
+         across(!genome_id,  ~replace(.x, .x == 1, "severe")))
   
 write_tsv(pheno_sub,
           file = paste0("data/pheno/", phenotype_cols, "/complete.tsv"))
