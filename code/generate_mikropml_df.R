@@ -16,7 +16,7 @@ pheno <- readr::read_delim(file = snakemake@input[["pheno"]],
 
 pheno_merge <- as.data.frame(pheno)
 rownames(pheno_merge) <- pheno_merge$genome_id
-pheno_merge <- pheno_merge[, -1, drop = FALSE]
+pheno_merge <- pheno_merge[, -which("genome_id" == colnames(pheno_merge)), drop = FALSE]
 
 print("pheno_merge has been successfully created")
 dim(pheno_merge)
